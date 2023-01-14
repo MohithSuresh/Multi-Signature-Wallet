@@ -105,6 +105,28 @@ contract MultiSignatureWallet {
         emit Revoked(msg.sender, _transactionId);
     }
 
+    //executeTransaction
+    function executeTransaction(
+        uint256 _transactionId
+    )
+        public
+        OnlyOwner
+        TxnExists(_transactionId)
+        TxnNotExecuted(_transactionId)
+    {
+        //check if the number of confirmations is greater than or equal to the required number of confirmations
+        require(
+            numberOfConfirmations[_transactionId] >=
+                requiredNumberOfConfirmtions,
+            "Number of confirmations is less than the required number of confirmations"
+        );
+        //execute transaction
+        Transaction storage txn = transactions[_transactionId];
+        txn.executed = true;
+        (bool success, ) = payable(txn.to).call{value: txn.value}(txn.data);
+        require(success, "Transaction failed");
+    }
+
     //check if the transaction exists
     modifier TxnExists(uint256 _transactionId) {
         require(
