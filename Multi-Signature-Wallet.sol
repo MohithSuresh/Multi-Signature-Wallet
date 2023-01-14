@@ -2,6 +2,16 @@
 pragma solidity 0.8.4;
 
 contract MultiSignatureWallet {
+    event Confirmed(address indexed _owner, uint256 indexed _transactionId);
+    event Revoked(address indexed _owner, uint256 indexed _transactionId);
+    event Submitted(
+        uint256 indexed _transactionId,
+        address indexed _from,
+        address indexed _to,
+        uint256 _value,
+        bytes _data
+    );
+
     // Array of owners
     address[] public owners;
     uint256 public requiredNumberOfConfirmtions;
@@ -42,9 +52,15 @@ contract MultiSignatureWallet {
     //submitTransaction
     function submitTransaction(
         Transaction memory _transaction
-    ) public returns (bool) {
+    ) public OnlyOwner {
         transactions.push(_transaction);
-        return true;
+        emit Submitted(
+            transactions.length - 1,
+            msg.sender,
+            _transaction.to,
+            _transaction.value,
+            _transaction.data
+        );
     }
 
     //confirmTransaction
@@ -56,7 +72,6 @@ contract MultiSignatureWallet {
         TxnExists(_transactionId)
         TxnNotExecuted(_transactionId)
         TxnNotConfirmed(_transactionId)
-        returns (bool)
     {
         //add the sender to the senders of the transaction
 
@@ -64,9 +79,31 @@ contract MultiSignatureWallet {
         numberOfConfirmations[_transactionId] += 1;
         //confirm transaction
         confirmations[_transactionId][msg.sender] = true;
+
+        emit Confirmed(msg.sender, _transactionId);
     }
 
     //revokeConfirmation
+    function revokeConfirmation(
+        uint256 _transactionId
+    )
+        public
+        OnlyOwner
+        TxnExists(_transactionId)
+        TxnNotExecuted(_transactionId)
+    {
+        //check if the sender has confirmed the transaction
+        require(
+            confirmations[_transactionId][msg.sender],
+            "Transaction has not been confirmed"
+        );
+        //decrement the number of confirmations of the transaction
+        numberOfConfirmations[_transactionId] -= 1;
+        //revoke confirmation
+        confirmations[_transactionId][msg.sender] = false;
+
+        emit Revoked(msg.sender, _transactionId);
+    }
 
     //check if the transaction exists
     modifier TxnExists(uint256 _transactionId) {
