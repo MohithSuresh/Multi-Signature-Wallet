@@ -7,10 +7,18 @@ contract MultiSignatureWallet {
     event Submitted(
         uint256 indexed _transactionId,
         address indexed _from,
+        address _to,
+        uint256 indexed _value,
+        bytes _data
+    );
+    event Executed(
+        uint256 indexed _transactionId,
+        address indexed _from,
         address indexed _to,
         uint256 _value,
         bytes _data
     );
+    event Deposit(address indexed _from, uint256 indexed _value);
 
     // Array of owners
     address[] public owners;
@@ -19,6 +27,7 @@ contract MultiSignatureWallet {
     mapping(uint256 => mapping(address => bool)) confirmations;
     mapping(address => bool) isOwner;
     mapping(uint256 => uint256) public numberOfConfirmations;
+    mapping(address => uint256) public depositorsToAmount;
 
     struct Transaction {
         address to;
@@ -125,6 +134,12 @@ contract MultiSignatureWallet {
         txn.executed = true;
         (bool success, ) = payable(txn.to).call{value: txn.value}(txn.data);
         require(success, "Transaction failed");
+        emit Executed(_transactionId, msg.sender, txn.to, txn.value, txn.data);
+    }
+
+    function deposit() public payable {
+        depositorsToAmount[msg.sender] += msg.value;
+        emit Deposit(msg.sender, msg.value);
     }
 
     //check if the transaction exists
